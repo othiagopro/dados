@@ -12,16 +12,16 @@ filmes.insert(0, 'O predador')
 # Imutavel
 data = ('12/01', '25/02', '26/03')
 
-v = filmes, data
-
-print(v)
 
                         # Dicionario
 
 # Não ordenada, Mútavel, Chave: valor
 
+# dados = {'João': 55, 'Thiago': 18}
+# dados['Pedro'] = 12
+# print(dados)
 
-
+filmes_dict = {}
 
 
 
