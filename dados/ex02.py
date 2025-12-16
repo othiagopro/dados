@@ -1,13 +1,17 @@
 # Escrever um arquivo com a função open()
 # write (w) serve para escrever o arquivo, quando vamos escrever precisamos passar dois parametros ('dados.txt', 'w') nesse caso criamos o txt e passamos o paramentro (w) indicando que estamos escrevendo
 # Read (r) serve para ler o arquivo!
+# (a) serve para adicionar algo na ultima linha sem sobrescrever 
 
 # TXT - Serve para salvar log dos registros, coisas mais simples, não pesa tanto no PC
 # CSV - Serve para grande quantidades de dados
 # JSON - Converter JSON para dict e vice versa
 
-with open('./dados/dados.txt', 'w') as t:
-     t.write('Teste, estou testando essa função, legal funcionou, teste')
+# with open('./dados/dados.txt', 'w') as t:
+#      t.write('Teste, estou testando essa função, legal funcionou, teste')
+
+with open('./dados/dados.txt', 'a') as t:
+    t.write('Ultima linha')
 
 with open('./dados/dados.txt', 'r') as t:
     conteudo = t.read()
