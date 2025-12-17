@@ -7,12 +7,29 @@
 # CSV - Serve para grande quantidades de dados
 # JSON - Converter JSON para dict e vice versa
 
+##                  TXT
 # with open('./dados/dados.txt', 'w') as t:
 #      t.write('Teste, estou testando essa função, legal funcionou, teste')
 
-with open('./dados/dados.txt', 'a') as t:
-    t.write('Ultima linha')
+# with open('./dados/dados.txt', 'a') as t:
+#     t.write('Ultima linha')
 
-with open('./dados/dados.txt', 'r') as t:
-    conteudo = t.read()
-print(conteudo)
+# with open('./dados/dados.txt', 'r') as t:
+#     conteudo = t.read()
+# print(conteudo)
+
+##                 CSV
+# import csv
+
+# with open('./dados/dados.csv', 'w') as t:
+#      escritor = csv.writer(t)
+#      escritor.writerow(['nome', 'idade'])
+#      escritor.writerow(['Thiago', '22'])
+#      escritor.writerow(['Janderson' '55'])
+
+# with open('./dados/dados.csv', newline='') as t:
+#     leitor = csv.reader(t)
+#     for linha in leitor:
+#         print(linha)
+
+##                JSON
