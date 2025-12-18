@@ -1,0 +1,13 @@
+SQL - Relacional 
+    Tabelas com colunas fixas 
+    Rigido 
+    Nativo
+    ERPs, bancos
+
+Primary Key é algo unico, não se repete
+
+NoSQL - Não Relacional
+    Documentos / Chaves-valor
+    Flexivel
+    Embutidos ou manuais
+    Apps web, redes sociais
