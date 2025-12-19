@@ -1,141 +1,125 @@
 import pdfplumber
 import pandas as pd
 import re
+import os
+
+CAMINHO_PDF = r"C:\Users\thiago\Desktop\dp.pessoal\Extrato Mensal.pdf"
 
 # ==============================================================================
-# CAMINHO DO ARQUIVO
-# ==============================================================================
-caminho_do_pdf = r"C:\Users\thiago\Desktop\Planilha Master\tipi.pdf"
+# NOVOS PADRÕES (SIMPLIFICADOS)
 # ==============================================================================
 
-def limpar_texto(texto):
-    if not texto: return ""
-    return re.sub(r'\s+', ' ', texto).strip()
+# Regex apenas para limpar o prefixo do ID (remove "Empr.:", "Contr:", pontos e espaços)
+REGEX_LIMPA_PREFIXO = re.compile(r'^(?:Empr|Contr|Empresa)[:\.\s]*', re.IGNORECASE)
 
-def processar_tipi_v5(caminho):
-    print("Iniciando leitura V5 (Com suporte a NCMs curtos como 9615.1)...")
-    
-    dados_finais = []
-    
-    ncm_atual = None
-    descricao_linhas = []
-    aliquota_atual = None
-    lendo_descricao = False 
+# Regex de Rubrica (Mantido pois é robusto)
+# Aceita: "1HORAS", "1 HORAS", valores colados "2.500,00P"
+REGEX_RUBRICA = re.compile(r'\b(\d{1,4})\s*([A-ZÀ-Ú0-9\.\%\/\-\(\)\s]+?)\s+(\d+(?:[.,]\d+)?)\s+(\d{1,3}(?:\.\d{3})*,\d{2})\s*([PD])')
 
-    # -------------------------------------------------------------------------
-    # 1. ATUALIZAÇÃO DA REGEX (A parte importante)
-    # -------------------------------------------------------------------------
-    # Explicação:
-    # \d{2}\.?\d{2}       -> Pega os 4 primeiros dígitos (ex: 9615)
-    # (?:\.\d{1,3})* -> Pega grupos de ponto + 1 a 3 dígitos (ex: .1, .10, .00, .5)
-    #                      Isso permite 9615.1, 9615.10, 9615.10.00, etc.
-    # |Ex\s*\d+           -> Ou pega exceções (Ex 01)
-    # -------------------------------------------------------------------------
-    regex_ncm = re.compile(r'^\s*(\d{2}\.?\d{2}(?:\.\d{1,3})*|Ex\s*\d+)\s+')
+# Regex de Competência
+REGEX_COMPETENCIA = re.compile(r'Competência:\s*(\d{2}/\d{4})')
 
-    # 2. IDENTIFICA ALÍQUOTA (Final da linha)
-    regex_aliq = re.compile(r'\s+(NT|[\d,]+)\s*$')
+def limpar_valor(valor_str):
+    if not valor_str: return 0.0
+    limpo = valor_str.replace('.', '').replace(',', '.')
+    try: return float(limpo)
+    except: return 0.0
 
-    # 3. LISTA DE BLOQUEIO (Títulos e sujeira que não devem ir para a descrição)
-    termos_bloqueio = [
-        "SEÇÃO", "Seção", "CAPÍTULO", "Capítulo", 
-        "OBJETOS DE ARTE", "MERCADORIAS E PRODUTOS", 
-        "Notas", "Nota.", "Nota Complementar", 
-        "Ressalvadas", "Consideram-se", "O presente Capítulo",
-        "_____", "O IPI incide", "Ficam reduzidas", "Na acepção"
-    ]
+def processar_folha_blindada(caminho):
+    dados = []
+    print(f"Lendo arquivo: {caminho}")
+
+    if not os.path.exists(caminho):
+        print("ERRO: Arquivo não encontrado!")
+        return
 
     with pdfplumber.open(caminho) as pdf:
-        total = len(pdf.pages)
+        competencia_atual = "Indefinida"
+
         for i, page in enumerate(pdf.pages):
-            print(f"Lendo página {i+1}/{total}...", end='\r')
+            # Tenta extração crua primeiro (às vezes layout=True separa demais as letras do nome)
+            texto = page.extract_text() 
+            if not texto: continue
+
+            # Atualiza competência
+            match_comp = REGEX_COMPETENCIA.search(texto)
+            if match_comp:
+                competencia_atual = match_comp.group(1)
+
+            linhas = texto.split('\n')
             
-            text = page.extract_text()
-            if not text: continue
-            
-            linhas = text.split('\n')
-            
+            id_func = None
+            nome_func = None
+
             for linha in linhas:
-                linha_limpa = linha.strip()
-                
-                # --- NOVO NCM ---
-                match_ncm = regex_ncm.match(linha)
+                linha = linha.strip()
+                if not linha: continue
 
-                if match_ncm:
-                    # Salva o anterior
-                    if ncm_atual:
-                        dados_finais.append([ncm_atual, limpar_texto(" ".join(descricao_linhas)), aliquota_atual])
-
-                    # Inicia o novo
-                    ncm_atual = match_ncm.group(1).strip()
-                    descricao_linhas = []
-                    aliquota_atual = None
-                    lendo_descricao = True
-
-                    # Processa o resto da linha
-                    resto = linha[match_ncm.end():]
-                    
-                    # Tenta pegar alíquota na mesma linha
-                    match_aliq_linha = regex_aliq.search(resto)
-                    if match_aliq_linha:
-                        aliquota_atual = match_aliq_linha.group(1)
-                        resto = resto[:match_aliq_linha.start()]
-                    
-                    # Verifica bloqueio na mesma linha
-                    for termo in termos_bloqueio:
-                        if termo in resto:
-                            resto = resto.split(termo)[0]
-                            lendo_descricao = False
-                            break
-
-                    if resto.strip():
-                        descricao_linhas.append(resto)
-
-                else:
-                    # --- CONTINUAÇÃO ---
-                    if not lendo_descricao:
-                        continue
-
-                    if ncm_atual:
-                        # Verifica se a linha inteira é um bloqueio (Títulos de Seção, etc)
-                        bloquear_agora = False
-                        for termo in termos_bloqueio:
-                            if termo in linha_limpa:
-                                bloquear_agora = True
-                                break
+                # --- 1. Lógica "Blindada" de Funcionário ---
+                # Verifica se a linha tem "Situação" (que é padrão nesse layout)
+                # E se tem "CPF" (para garantir que é cabeçalho de func)
+                if "Situação" in linha and "CPF" in linha:
+                    try:
+                        # Pega tudo que vem ANTES de "Situação"
+                        parte_esquerda = linha.split("Situação")[0].strip()
                         
-                        if bloquear_agora:
-                            lendo_descricao = False
-                            continue
-
-                        # Tenta achar alíquota final
-                        match_aliq_final = regex_aliq.search(linha)
-                        if match_aliq_final:
-                            aliquota_atual = match_aliq_final.group(1)
-                            texto = linha[:match_aliq_final.start()]
-                            if texto.strip():
-                                descricao_linhas.append(texto)
+                        # Remove o prefixo "Empr.:" ou "Contr:"
+                        parte_limpa = REGEX_LIMPA_PREFIXO.sub("", parte_esquerda).strip()
+                        
+                        # Agora parte_limpa deve ser algo como "96ALZIRA..." ou "1 CAMILA..."
+                        # Vamos separar o primeiro número (ID) do resto (Nome)
+                        match_id_nome = re.search(r'^(\d+)\s*(.*)', parte_limpa)
+                        
+                        if match_id_nome:
+                            id_func = match_id_nome.group(1)
+                            nome_func = match_id_nome.group(2).strip()
+                            print(f"Funcinário encontrado: ID {id_func} - {nome_func}")
                         else:
-                            descricao_linhas.append(linha)
+                            # Caso de falha estranha, reseta para não misturar
+                            print(f"Aviso: Linha de funcionário detectada mas não processada: {parte_esquerda}")
+                            id_func = None 
+                    except Exception as e:
+                        print(f"Erro ao processar linha de func: {e}")
+                    continue
 
-        # Salva o último
-        if ncm_atual:
-            dados_finais.append([ncm_atual, limpar_texto(" ".join(descricao_linhas)), aliquota_atual])
+                # --- 2. Rubricas ---
+                if id_func:
+                    matches = REGEX_RUBRICA.finditer(linha)
+                    for match in matches:
+                        desc = match.group(2).strip()
+                        if len(desc) < 2: continue # Ignora lixo
+                        
+                        # Ignora anos soltos que o regex possa pegar
+                        if match.group(1) in ["2024", "2025"]: continue
 
-    print("\nSalvando Excel...")
-    df = pd.DataFrame(dados_finais, columns=['NCM', 'Descrição', 'Alíquota (%)'])
-    df = df[df['NCM'].notna()]
-    
-    # Limpeza final de alíquotas presas na descrição
-    def limpar_nt(x):
-        if isinstance(x, str) and x.endswith('NT'):
-            return x.replace('NT', '').strip()
-        return x
+                        dado = {
+                            "Competencia": competencia_atual,
+                            "ID": int(id_func), # Converte para int para ordenar melhor no Excel
+                            "Nome": nome_func,
+                            "Rubrica_Cod": int(match.group(1)),
+                            "Descricao": desc,
+                            "Referencia": match.group(3),
+                            "Valor": limpar_valor(match.group(4)),
+                            "Tipo": "Provento" if match.group(5) == 'P' else "Desconto"
+                        }
+                        dados.append(dado)
+
+    # --- Exportação ---
+    if dados:
+        df = pd.DataFrame(dados)
         
-    df['Descrição'] = df['Descrição'].apply(limpar_nt)
-    
-    df.to_excel("tabela_tipi_v5_completa.xlsx", index=False)
-    print("Concluído!")
+        # Ordenação: Competência -> Nome -> Tipo (Provento primeiro) -> Código
+        df = df.sort_values(by=['Competencia', 'Nome', 'Tipo', 'Rubrica_Cod'], ascending=[True, True, False, True])
+        
+        print(f"\nSucesso total! {len(df)} registros extraídos.")
+        print(df.tail())
+        
+        df.to_csv("folha_final_corrigida.csv", index=False, sep=';', encoding='utf-8-sig')
+        print("Salvo em: folha_final_corrigida.csv")
+    else:
+        print("\nNenhum dado extraído.")
+        print("DICA: Se ainda falhar, mande o print do comando abaixo:")
+        print("print(pdf.pages[0].extract_text())")
 
 if __name__ == "__main__":
-    processar_tipi_v5(caminho_do_pdf)
+    processar_folha_blindada(CAMINHO_PDF)

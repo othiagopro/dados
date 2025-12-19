@@ -11,3 +11,18 @@ NoSQL - Não Relacional
     Flexivel
     Embutidos ou manuais
     Apps web, redes sociais
+
+SQLite
+    Leve
+    Serviço local
+    Integrado no python
+
+    Create Table - Criar Tabelas
+    Insert Into - Insere dados
+    Select - Consulta
+    Update - Atualiza
+    Delete - Remove
+    Join - Relaciona Tabelas
+
+    INJEÇÃO DE SQL  
+        Ataque de Hackers
