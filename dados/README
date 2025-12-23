@@ -40,3 +40,7 @@ FASTapi
 
 CROUD
     Create, Read, Update, Delete
+
+Instalar dependencias 
+    pip install -r requirements.txt
+    pip list - Mostrar as bibliotecas baixadas!
