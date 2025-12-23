@@ -10,5 +10,6 @@ cursor.execute(
     """,
     ("Joana", 16)
 )
+
 conn.commit()
 conn.close()

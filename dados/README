@@ -1,0 +1,28 @@
+SQL - Relacional 
+    Tabelas com colunas fixas 
+    Rigido 
+    Nativo
+    ERPs, bancos
+
+Primary Key é algo unico, não se repete
+
+NoSQL - Não Relacional
+    Documentos / Chaves-valor
+    Flexivel
+    Embutidos ou manuais
+    Apps web, redes sociais
+
+SQLite
+    Leve
+    Serviço local
+    Integrado no python
+
+    Create Table - Criar Tabelas
+    Insert Into - Insere dados
+    Select - Consulta
+    Update - Atualiza
+    Delete - Remove
+    Join - Relaciona Tabelas
+
+    INJEÇÃO DE SQL  
+        Ataque de Hackers
