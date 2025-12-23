@@ -1,7 +1,7 @@
-import sqlite3, platform
+import sqlite3
 
 def conectar():
-    conn. sqlite3.connect('escola.db')
+    conn = sqlite3.connect('escolas.db')
     return conn
 
 def criar_tabela_estudantes():
@@ -12,7 +12,7 @@ def criar_tabela_estudantes():
             CREATE TABLE IF NOT EXISTS estudantes(
                 id INTEGER PRIMARY KEY,
                 nome TEXT,
-                idade INTEGER,
+                idade INTEGER
             )
         """
     )
@@ -26,12 +26,41 @@ def criar_tabela_matriculas():
         """
             CREATE TABLE IF NOT EXISTS matriculas(
                 id INTEGER PRIMARY KEY,
-                nome_disciplica TEXT,
+                nome_disciplina TEXT,
                 estudante_id INTEGER,
-                FORENG KEY (estudante_id) REFERENCES estudantes(id) 
+                FOREIGN KEY (estudante_id) REFERENCES estudantes(id) 
+            )
         """
         # FORENG = Chave estrangeira faz ligação dos bancos
     )
+    conn.commit()
+    conn.close()
+
+def criar_matricula(estudante_id,nome_disciplina):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+            INSERT INTO matriculas (estudante_id, nome_disciplina) \
+            VALUES(?, ?)
+        """, (estudante_id, nome_disciplina)
+    )
+    conn.commit()
+    conn.close()
+
+def listar_matriculas():
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+            SELECT matriculas.id, estudantes.nome, matriculas.nome_disciplina 
+            FROM matriculas
+            JOIN estudantes ON matriculas.estudante_id = estudantes.id
+        """
+    )
+    matriculas = cursor.fetchall()
+    for matricula in matriculas:
+        print(matricula)
     conn.commit()
     conn.close()
 
@@ -60,7 +89,5 @@ def listar_estudantes():
         print(estudante)
     conn.commit()
     conn.close()
-
-
 
 
