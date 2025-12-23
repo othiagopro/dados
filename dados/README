@@ -26,3 +26,8 @@ SQLite
 
     INJEÇÃO DE SQL  
         Ataque de Hackers
+
+API REST
+    Interface de programação
+    Métodos HTTP
+    Endpoints = URLS que esperam uma informação ou devolve uma informação
